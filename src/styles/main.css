@@ -1,0 +1,226 @@
+@import "tailwindcss";
+
+@theme {
+    /* Font Family */
+    --font-sans: "Inter", sans-serif;
+
+    /* Snowflakes */
+    --snowflake-color: #ffffff;
+
+    /* Colors */
+    --color-dark: #000000;
+    --color-dark-100: #111111;
+    --color-dark-200: #222222;
+    --color-dark-300: #333333;
+    --color-dark-400: #444444;
+    --color-dark-500: #555555;
+    --color-dark-600: #666666;
+    --color-dark-700: #777777;
+    --color-dark-800: #888888;
+    --color-dark-900: #999999;
+    --color-primary: #14B8A6;
+    --color-primary-100: #F0FDFA;
+    --color-primary-200: #CCFBF1;
+    --color-primary-300: #99F6E4;
+    --color-primary-400: #5EEAD4;
+    --color-primary-500: #14B8A6;
+    --color-primary-600: #0D9488;
+    --color-primary-700: #0F766E;
+    --color-primary-800: #115E59;
+    --color-primary-900: #134E4A;
+
+
+    /* Animations */
+    --animate-logo-float: logo-float 6s ease-in-out infinite;
+    --animate-fade-in-up: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-fade-in-down: fade-in-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-fade-in-scale: fade-in-scale 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-slide-in-left: slide-in-left 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-slide-in-right: slide-in-right 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-blur-in: blur-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
+    --animate-card-enter: card-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+    @keyframes logo-float {
+
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @keyframes fade-in-up {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fade-in-down {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fade-in-scale {
+        from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    @keyframes slide-in-left {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes slide-in-right {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes blur-in {
+        from {
+            opacity: 0;
+            filter: blur(10px);
+            transform: scale(1.02);
+        }
+
+        to {
+            opacity: 1;
+            filter: blur(0);
+            transform: scale(1);
+        }
+    }
+
+    @keyframes glow-pulse {
+
+        0%,
+        100% {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1),
+                0 0 40px rgba(255, 255, 255, 0.05);
+        }
+
+        50% {
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.2),
+                0 0 60px rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    @keyframes card-enter {
+        from {
+            opacity: 0;
+            transform: translateY(40px) scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes grid-ripple {
+
+        0%,
+        100% {
+            background-size: 50px 50px;
+        }
+
+        50% {
+            background-size: 55px 55px;
+        }
+    }
+}
+
+/* Base Styles */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    @apply bg-black text-white overflow-x-hidden leading-relaxed font-sans;
+}
+
+/* Initial state for animated elements */
+.animate-initial {
+    opacity: 0;
+}
+
+/* Logo glow effect */
+.logo-glow {
+    animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Smooth hover transitions for cards */
+.card-hover-effect {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover-effect:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3),
+        0 0 40px rgba(255, 255, 255, 0.03);
+}
+
+/* Navbar animation */
+.navbar-enter {
+    animation: fade-in-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Icon bounce on hover */
+.icon-bounce:hover i {
+    animation: icon-bounce 0.5s ease;
+}
+
+@keyframes icon-bounce {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+/* Text reveal effect */
+.text-reveal {
+    background: linear-gradient(90deg, #fff 0%, rgba(255, 255, 255, 0.8) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+}
