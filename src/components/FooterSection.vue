@@ -4,13 +4,7 @@ import { computed, ref, onMounted } from 'vue'
 const isVisible = ref(false)
 
 const copyrightYear = computed(() => {
-    const startYear = 2025
-    const currentYear = new Date().getFullYear()
-
-    if (currentYear > startYear) {
-        return `${startYear}-${currentYear}`
-    }
-    return `${startYear}`
+    return new Date().getFullYear()
 })
 
 onMounted(() => {
