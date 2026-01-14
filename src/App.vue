@@ -65,7 +65,7 @@ onMounted(() => {
                 <HeroSection />
 
                 <!-- Sites Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-12">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-12 items-start">
                     <SiteCard v-for="(site, index) in sites" :key="site.url" :url="site.url" :icon="site.icon"
                         :title="site.title" :description="site.description" :delay="(index + 1) * 0.1" />
                 </div>
