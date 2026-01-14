@@ -33,7 +33,7 @@ onMounted(() => {
             class="text-lg sm:text-xl text-dark-900/80 text-center mb-12 sm:mb-16 font-normal transition-all duration-1000 delay-100"
             :class="subtitleVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'"
         >
-            I'm a Developer • Simply living, constantly learning, always building
+            Simply living, constantly learning, always building.
         </p>
     </div>
 </template>
