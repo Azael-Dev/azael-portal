@@ -67,4 +67,13 @@ const router = createRouter({
     routes
 })
 
+router.isReady().then(() => {
+    const redirectPath = sessionStorage.getItem('redirectPath');
+
+    if (redirectPath) {
+        sessionStorage.removeItem('redirectPath');
+        router.replace(redirectPath);
+    }
+});
+
 export default router
