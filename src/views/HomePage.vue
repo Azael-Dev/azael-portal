@@ -5,6 +5,7 @@ import WaveBackground from '../components/WaveBackground.vue'
 import HeroSection from '../components/HeroSection.vue'
 import SiteCard from '../components/SiteCard.vue'
 import FooterSection from '../components/FooterSection.vue'
+import StatusAlert from '../components/StatusAlert.vue'
 
 interface Site {
     url: string
@@ -52,6 +53,9 @@ onMounted(() => {
 
 <template>
     <div class="transition-opacity duration-500 ease-in" :class="isLoaded ? 'opacity-100' : 'opacity-0'">
+        <!-- Status Alert -->
+        <StatusAlert />
+
         <!-- Navbar -->
         <NavBar />
 
