@@ -7,7 +7,6 @@ const {
     isLoading,
     parseIssueBody,
     isUpcoming,
-    isActiveSchedule,
     getAlertType,
     formatDate,
     dismissAlert,
@@ -22,6 +21,33 @@ const isExpanded = ref(false)
 // Get the first active (non-dismissed) issue
 const activeIssue = computed<StatusIssue | null>(() => getActiveIssue())
 
+// Get all status issues (for aggregated display)
+const allStatusIssues = computed<StatusIssue[]>(() => {
+    return issues.value.filter((issue: StatusIssue) => {
+        const labels = issue.labels.map((l: { name: string }) => l.name.toLowerCase())
+        return labels.includes('status') && !isAlertDismissed(issue.id)
+    })
+})
+
+// Check if we have status type alert
+const hasStatusAlert = computed(() => allStatusIssues.value.length > 0)
+
+// Get all affected services from all status issues
+const allStatusAffectedServices = computed(() => {
+    const services: Array<{ name: string; issueTitle: string; issueUrl: string }> = []
+    allStatusIssues.value.forEach((issue: StatusIssue) => {
+        const affectedServices = getAffectedServicesFromLabels(issue.labels)
+        affectedServices.forEach(service => {
+            services.push({
+                name: service,
+                issueTitle: issue.title,
+                issueUrl: issue.html_url
+            })
+        })
+    })
+    return services
+})
+
 // Parse the issue body for metadata
 const parsedInfo = computed<ParsedStatusInfo | null>(() => {
     if (!activeIssue.value) return null
@@ -30,6 +56,8 @@ const parsedInfo = computed<ParsedStatusInfo | null>(() => {
 
 // Determine alert type based on labels
 const alertType = computed(() => {
+    // If we have any status issues, prioritize showing them
+    if (hasStatusAlert.value) return 'status'
     if (!activeIssue.value) return 'info'
     return getAlertType(activeIssue.value.labels)
 })
@@ -52,8 +80,9 @@ const alertStyles = computed(() => {
                 textColor: 'text-primary-400',
                 iconColor: 'text-primary-400',
                 icon: 'fas fa-calendar-alt',
-                glowColor: 'shadow-primary-500/20',
-                badgeBg: 'bg-primary-500/20'
+                glowColor: 'rgba(20, 184, 166, 0.15)',
+                badgeBg: 'bg-primary-500/20',
+                pulseColor: 'bg-primary-500'
             }
         } else {
             // Active maintenance - use amber color
@@ -63,8 +92,9 @@ const alertStyles = computed(() => {
                 textColor: 'text-amber-400',
                 iconColor: 'text-amber-400',
                 icon: 'fas fa-wrench',
-                glowColor: 'shadow-amber-500/20',
-                badgeBg: 'bg-amber-500/20'
+                glowColor: 'rgba(245, 158, 11, 0.15)',
+                badgeBg: 'bg-amber-500/20',
+                pulseColor: 'bg-amber-500'
             }
         }
     }
@@ -77,8 +107,9 @@ const alertStyles = computed(() => {
             textColor: 'text-red-400',
             iconColor: 'text-red-400',
             icon: 'fas fa-exclamation-triangle',
-            glowColor: 'shadow-red-500/20',
-            badgeBg: 'bg-red-500/20'
+            glowColor: 'rgba(239, 68, 68, 0.15)',
+            badgeBg: 'bg-red-500/20',
+            pulseColor: 'bg-red-500'
         }
     }
 
@@ -89,50 +120,48 @@ const alertStyles = computed(() => {
         textColor: 'text-primary-400',
         iconColor: 'text-primary-400',
         icon: 'fas fa-info-circle',
-        glowColor: 'shadow-primary-500/20',
-        badgeBg: 'bg-primary-500/20'
+        glowColor: 'rgba(20, 184, 166, 0.15)',
+        badgeBg: 'bg-primary-500/20',
+        pulseColor: 'bg-primary-500'
     }
 })
 
 // Status text
 const statusText = computed(() => {
-    if (!parsedInfo.value) return ''
+    if (alertType.value === 'status') {
+        const count = allStatusIssues.value.length
+        return count > 1 ? `${count} Issues Found` : 'Service Alert'
+    }
 
     if (alertType.value === 'maintenance') {
         if (isMaintenanceUpcoming.value) {
-            return 'กำหนดการบำรุงรักษา'
+            return 'Scheduled Maintenance'
         }
-        return 'กำลังปรับปรุงระบบ'
+        return 'Maintenance In Progress'
     }
 
-    if (alertType.value === 'status') {
-        return 'แจ้งเตือนปัญหา'
-    }
-
-    return 'แจ้งเตือน'
-})
-
-// Get all affected services for status type (from labels)
-const statusAffectedServices = computed(() => {
-    if (alertType.value !== 'status' || !activeIssue.value) return []
-    return getAffectedServicesFromLabels(activeIssue.value.labels)
+    return 'Notice'
 })
 
 // Combined services (down + degraded) for display
 const hasAffectedServices = computed(() => {
     return (parsedInfo.value?.expectedDown?.length || 0) > 0 ||
         (parsedInfo.value?.expectedDegraded?.length || 0) > 0 ||
-        statusAffectedServices.value.length > 0
+        allStatusAffectedServices.value.length > 0
 })
 
-// Handle dismiss
+// Handle dismiss - for status, dismiss all status issues
 const handleDismiss = () => {
-    if (activeIssue.value) {
-        isVisible.value = false
-        setTimeout(() => {
-            dismissAlert(activeIssue.value!.id)
-        }, 300)
-    }
+    isVisible.value = false
+    setTimeout(() => {
+        if (alertType.value === 'status') {
+            allStatusIssues.value.forEach((issue: StatusIssue) => {
+                dismissAlert(issue.id)
+            })
+        } else if (activeIssue.value) {
+            dismissAlert(activeIssue.value.id)
+        }
+    }, 400)
 }
 
 // Toggle expanded state
@@ -143,20 +172,24 @@ const toggleExpanded = () => {
 // Show alert with animation after mount
 onMounted(() => {
     setTimeout(() => {
-        if (activeIssue.value && !isAlertDismissed(activeIssue.value.id)) {
+        if ((hasStatusAlert.value || activeIssue.value) && 
+            (hasStatusAlert.value || !isAlertDismissed(activeIssue.value!.id))) {
             isVisible.value = true
         }
-    }, 500)
+    }, 1200)
 })
 
 // Watch for issues loaded
 const checkAndShowAlert = () => {
-    if (activeIssue.value && !isAlertDismissed(activeIssue.value.id)) {
+    if ((hasStatusAlert.value || activeIssue.value)) {
         setTimeout(() => {
             isVisible.value = true
-        }, 500)
+        }, 1200)
     }
 }
+
+// Status page URL
+const statusPageUrl = import.meta.env.VITE_STATUS_URL || '#'
 
 // Re-check when issues change
 watch(issues, checkAndShowAlert)
@@ -165,77 +198,86 @@ watch(issues, checkAndShowAlert)
 <template>
     <!-- Status Alert Banner -->
     <Transition name="alert-slide">
-        <div v-if="activeIssue && isVisible && !isLoading"
+        <div v-if="(hasStatusAlert || activeIssue) && isVisible && !isLoading"
             class="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
             <div :class="[
-                'rounded-2xl border backdrop-blur-xl transition-all duration-300',
+                'alert-card rounded-2xl border backdrop-blur-xl transition-all duration-500',
                 alertStyles.bgColor,
                 alertStyles.borderColor,
                 isExpanded ? 'shadow-2xl' : 'shadow-xl'
-            ]" :style="{ boxShadow: `0 8px 32px -4px ${alertType === 'status' ? 'rgba(239, 68, 68, 0.15)' : alertType === 'maintenance' && !isMaintenanceUpcoming ? 'rgba(245, 158, 11, 0.15)' : 'rgba(20, 184, 166, 0.15)'}` }">
+            ]" :style="{ boxShadow: `0 8px 32px -4px ${alertStyles.glowColor}, 0 0 0 1px ${alertStyles.glowColor}` }">
                 <!-- Main Alert Header -->
                 <div class="p-4">
                     <div class="flex items-start gap-4">
                         <!-- Icon with glow effect -->
                         <div class="relative flex-shrink-0">
                             <div :class="[
-                                'w-11 h-11 rounded-xl flex items-center justify-center',
+                                'w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 hover:scale-105',
                                 alertStyles.badgeBg
                             ]">
-                                <i :class="[alertStyles.icon, alertStyles.iconColor, 'text-lg']"></i>
+                                <i :class="[alertStyles.icon, alertStyles.iconColor, 'text-xl']"></i>
                             </div>
-                            <!-- Pulse indicator -->
-                            <span v-if="!isMaintenanceUpcoming" :class="[
-                                'absolute -top-1 -right-1 w-3 h-3 rounded-full',
-                                alertType === 'status' ? 'bg-red-500' : 'bg-amber-500'
-                            ]">
+                            <!-- Pulse indicator for active alerts -->
+                            <span v-if="alertType === 'status' || (alertType === 'maintenance' && !isMaintenanceUpcoming)" 
+                                class="absolute -top-1 -right-1 flex h-3.5 w-3.5">
                                 <span :class="[
-                                    'absolute inset-0 rounded-full animate-ping',
-                                    alertType === 'status' ? 'bg-red-400' : 'bg-amber-400'
+                                    'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
+                                    alertStyles.pulseColor
+                                ]"></span>
+                                <span :class="[
+                                    'relative inline-flex rounded-full h-3.5 w-3.5',
+                                    alertStyles.pulseColor
                                 ]"></span>
                             </span>
                         </div>
 
                         <!-- Content -->
                         <div class="flex-1 min-w-0">
-                            <!-- Status Badge & Title -->
-                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <!-- Status Badge -->
+                            <div class="flex items-center gap-2 flex-wrap mb-2">
                                 <span :class="[
-                                    'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold tracking-wide uppercase',
+                                    'inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold tracking-wide uppercase',
                                     alertStyles.badgeBg,
                                     alertStyles.textColor
                                 ]">
                                     <i :class="[alertStyles.icon, 'mr-1.5 text-[10px]']"></i>
                                     {{ statusText }}
                                 </span>
+                                <span v-if="alertType === 'status' && allStatusIssues.length > 1" 
+                                    class="text-xs text-gray-500">
+                                    Multiple services affected
+                                </span>
                             </div>
 
-                            <!-- Title -->
-                            <h3 class="text-white font-medium text-sm leading-snug mb-2">
+                            <!-- Title - for status show summary, for others show issue title -->
+                            <h3 v-if="alertType === 'status'" class="text-white font-semibold text-sm leading-snug mb-2">
+                                Some services are currently experiencing issues
+                            </h3>
+                            <h3 v-else-if="activeIssue" class="text-white font-semibold text-sm leading-snug mb-2">
                                 {{ activeIssue.title }}
                             </h3>
 
-                            <!-- Time Range (if available) -->
-                            <div v-if="parsedInfo?.start || parsedInfo?.end"
-                                class="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                            <!-- Time Range (for maintenance) -->
+                            <div v-if="alertType !== 'status' && (parsedInfo?.start || parsedInfo?.end)"
+                                class="flex items-center gap-2 text-xs text-gray-400 mb-3">
                                 <i class="fas fa-clock text-gray-500"></i>
-                                <span v-if="parsedInfo.start" class="font-medium">{{ formatDate(parsedInfo.start) }}</span>
-                                <span v-if="parsedInfo.start && parsedInfo.end" class="text-gray-600">→</span>
-                                <span v-if="parsedInfo.end" class="font-medium">{{ formatDate(parsedInfo.end) }}</span>
+                                <span v-if="parsedInfo?.start" class="font-medium">{{ formatDate(parsedInfo.start) }}</span>
+                                <span v-if="parsedInfo?.start && parsedInfo?.end" class="text-gray-600">→</span>
+                                <span v-if="parsedInfo?.end" class="font-medium">{{ formatDate(parsedInfo.end) }}</span>
                             </div>
 
                             <!-- Affected Services Preview (collapsed view) -->
                             <div v-if="hasAffectedServices && !isExpanded" class="flex flex-wrap gap-1.5">
-                                <!-- Status type: show services from labels -->
+                                <!-- Status type: show all affected services from all issues -->
                                 <template v-if="alertType === 'status'">
-                                    <span v-for="service in statusAffectedServices.slice(0, 4)" :key="service"
-                                        class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-red-500/10 text-red-300 border border-red-500/20">
-                                        <i class="fas fa-times-circle mr-1 text-[9px] text-red-400"></i>
-                                        {{ service }}
+                                    <span v-for="(service, index) in allStatusAffectedServices.slice(0, 4)" :key="index"
+                                        class="service-tag inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-red-500/15 text-red-300 border border-red-500/30 transition-all duration-200 hover:bg-red-500/25">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5 animate-pulse"></span>
+                                        {{ service.name }}
                                     </span>
-                                    <span v-if="statusAffectedServices.length > 4"
-                                        class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-dark-300/50 text-gray-400">
-                                        +{{ statusAffectedServices.length - 4 }} อื่นๆ
+                                    <span v-if="allStatusAffectedServices.length > 4"
+                                        class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-dark-300/60 text-gray-400 border border-dark-400/30">
+                                        +{{ allStatusAffectedServices.length - 4 }} more
                                     </span>
                                 </template>
 
@@ -243,28 +285,28 @@ watch(issues, checkAndShowAlert)
                                 <template v-else>
                                     <!-- Down services (red) -->
                                     <span v-for="service in (parsedInfo?.expectedDown || []).slice(0, 2)" :key="'down-' + service"
-                                        class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-red-500/10 text-red-300 border border-red-500/20">
-                                        <i class="fas fa-times-circle mr-1 text-[9px] text-red-400"></i>
+                                        class="service-tag inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-red-500/15 text-red-300 border border-red-500/30">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5"></span>
                                         {{ service }}
                                     </span>
-                                    <!-- Degraded services (amber/primary based on timing) -->
+                                    <!-- Degraded services -->
                                     <span v-for="service in (parsedInfo?.expectedDegraded || []).slice(0, 2)" :key="'degraded-' + service"
                                         :class="[
-                                            'inline-flex items-center px-2 py-0.5 rounded-md text-xs border',
+                                            'service-tag inline-flex items-center px-2.5 py-1 rounded-lg text-xs border',
                                             isMaintenanceUpcoming
-                                                ? 'bg-primary-500/10 text-primary-300 border-primary-500/20'
-                                                : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                                                ? 'bg-primary-500/15 text-primary-300 border-primary-500/30'
+                                                : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                                         ]">
-                                        <i :class="[
-                                            'fas fa-exclamation-circle mr-1 text-[9px]',
-                                            isMaintenanceUpcoming ? 'text-primary-400' : 'text-amber-400'
-                                        ]"></i>
+                                        <span :class="[
+                                            'w-1.5 h-1.5 rounded-full mr-1.5',
+                                            isMaintenanceUpcoming ? 'bg-primary-400' : 'bg-amber-400'
+                                        ]"></span>
                                         {{ service }}
                                     </span>
                                     <!-- More indicator -->
                                     <span v-if="((parsedInfo?.expectedDown?.length || 0) + (parsedInfo?.expectedDegraded?.length || 0)) > 4"
-                                        class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-dark-300/50 text-gray-400">
-                                        +{{ ((parsedInfo?.expectedDown?.length || 0) + (parsedInfo?.expectedDegraded?.length || 0)) - 4 }} อื่นๆ
+                                        class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-dark-300/60 text-gray-400 border border-dark-400/30">
+                                        +{{ ((parsedInfo?.expectedDown?.length || 0) + (parsedInfo?.expectedDegraded?.length || 0)) - 4 }} more
                                     </span>
                                 </template>
                             </div>
@@ -274,15 +316,15 @@ watch(issues, checkAndShowAlert)
                         <div class="flex-shrink-0 flex items-center gap-1">
                             <!-- Expand/Collapse Button -->
                             <button @click="toggleExpanded"
-                                class="p-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-gray-400 hover:text-white cursor-pointer"
-                                :title="isExpanded ? 'ย่อ' : 'ขยาย'">
-                                <i :class="['fas text-sm transition-transform duration-200', isExpanded ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
+                                class="action-btn p-2.5 rounded-xl hover:bg-white/10 transition-all duration-200 text-gray-400 hover:text-white cursor-pointer"
+                                :title="isExpanded ? 'Collapse' : 'Expand'">
+                                <i :class="['fas text-sm transition-transform duration-300', isExpanded ? 'fa-chevron-up rotate-0' : 'fa-chevron-down']"></i>
                             </button>
 
                             <!-- Dismiss Button -->
                             <button @click="handleDismiss"
-                                class="p-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-gray-400 hover:text-white cursor-pointer"
-                                title="ปิด">
+                                class="action-btn p-2.5 rounded-xl hover:bg-white/10 transition-all duration-200 text-gray-400 hover:text-white cursor-pointer"
+                                title="Dismiss">
                                 <i class="fas fa-times text-sm"></i>
                             </button>
                         </div>
@@ -291,37 +333,45 @@ watch(issues, checkAndShowAlert)
 
                 <!-- Expanded Content -->
                 <Transition name="expand">
-                    <div v-if="isExpanded" class="px-4 pb-4">
+                    <div v-if="isExpanded" class="px-4 pb-4 overflow-hidden">
                         <div class="pt-4 border-t border-white/10">
                             <!-- All Affected Services -->
                             <div v-if="hasAffectedServices" class="mb-4">
-                                <h4 class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">
-                                    บริการที่ได้รับผลกระทบ
+                                <h4 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-server text-[10px]"></i>
+                                    Affected Services
                                 </h4>
 
-                                <!-- Status type: show all services from labels -->
+                                <!-- Status type: show all services from all issues -->
                                 <template v-if="alertType === 'status'">
-                                    <div class="flex flex-wrap gap-2">
-                                        <span v-for="service in statusAffectedServices" :key="service"
-                                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-red-500/10 text-red-300 border border-red-500/20">
-                                            <i class="fas fa-times-circle mr-1.5 text-red-400"></i>
-                                            {{ service }}
-                                        </span>
+                                    <div class="space-y-2">
+                                        <div v-for="(service, index) in allStatusAffectedServices" :key="index"
+                                            class="flex items-center justify-between p-3 rounded-xl bg-red-500/10 border border-red-500/20 transition-all duration-200 hover:bg-red-500/15">
+                                            <div class="flex items-center gap-3">
+                                                <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
+                                                <span class="text-sm text-red-300 font-medium">{{ service.name }}</span>
+                                            </div>
+                                            <a :href="service.issueUrl" target="_blank" rel="noopener noreferrer"
+                                                class="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1">
+                                                <span class="hidden sm:inline">View Details</span>
+                                                <i class="fas fa-external-link-alt text-[10px]"></i>
+                                            </a>
+                                        </div>
                                     </div>
                                 </template>
 
                                 <!-- Maintenance type: show down and degraded separately -->
                                 <template v-else>
                                     <!-- Down services -->
-                                    <div v-if="parsedInfo?.expectedDown?.length" class="mb-3">
-                                        <p class="text-xs text-red-400 mb-2 flex items-center">
+                                    <div v-if="parsedInfo?.expectedDown?.length" class="mb-4">
+                                        <p class="text-xs text-red-400 mb-2 flex items-center font-medium">
                                             <i class="fas fa-times-circle mr-1.5"></i>
-                                            ไม่สามารถใช้งานได้ชั่วคราว
+                                            Temporarily Unavailable
                                         </p>
                                         <div class="flex flex-wrap gap-2">
                                             <span v-for="service in parsedInfo.expectedDown" :key="'down-' + service"
-                                                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-red-500/10 text-red-300 border border-red-500/20">
-                                                <i class="fas fa-server mr-1.5 text-[10px]"></i>
+                                                class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs bg-red-500/15 text-red-300 border border-red-500/30">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
                                                 {{ service }}
                                             </span>
                                         </div>
@@ -330,21 +380,24 @@ watch(issues, checkAndShowAlert)
                                     <!-- Degraded services -->
                                     <div v-if="parsedInfo?.expectedDegraded?.length">
                                         <p :class="[
-                                            'text-xs mb-2 flex items-center',
+                                            'text-xs mb-2 flex items-center font-medium',
                                             isMaintenanceUpcoming ? 'text-primary-400' : 'text-amber-400'
                                         ]">
                                             <i class="fas fa-exclamation-circle mr-1.5"></i>
-                                            อาจได้รับผลกระทบ
+                                            May Be Affected
                                         </p>
                                         <div class="flex flex-wrap gap-2">
                                             <span v-for="service in parsedInfo.expectedDegraded" :key="'degraded-' + service"
                                                 :class="[
-                                                    'inline-flex items-center px-3 py-1.5 rounded-lg text-xs border',
+                                                    'inline-flex items-center px-3 py-1.5 rounded-xl text-xs border',
                                                     isMaintenanceUpcoming
-                                                        ? 'bg-primary-500/10 text-primary-300 border-primary-500/20'
-                                                        : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                                                        ? 'bg-primary-500/15 text-primary-300 border-primary-500/30'
+                                                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                                                 ]">
-                                                <i class="fas fa-server mr-1.5 text-[10px]"></i>
+                                                <span :class="[
+                                                    'w-1.5 h-1.5 rounded-full mr-2',
+                                                    isMaintenanceUpcoming ? 'bg-primary-400' : 'bg-amber-400'
+                                                ]"></span>
                                                 {{ service }}
                                             </span>
                                         </div>
@@ -352,22 +405,34 @@ watch(issues, checkAndShowAlert)
                                 </template>
                             </div>
 
-                            <!-- Description Preview -->
-                            <div v-if="parsedInfo?.description" class="mb-4">
-                                <h4 class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">รายละเอียด</h4>
+                            <!-- Description Preview (for maintenance) -->
+                            <div v-if="alertType !== 'status' && parsedInfo?.description" class="mb-4">
+                                <h4 class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-info-circle text-[10px]"></i>
+                                    Description
+                                </h4>
                                 <p class="text-sm text-gray-300 leading-relaxed line-clamp-3">
                                     {{ parsedInfo.description.replace(/[#*`]/g, '').substring(0, 250) }}...
                                 </p>
                             </div>
 
                             <!-- View More Link -->
-                            <a :href="activeIssue.html_url" target="_blank" rel="noopener noreferrer" :class="[
-                                'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                            <a v-if="alertType !== 'status' && activeIssue" 
+                                :href="activeIssue.html_url" target="_blank" rel="noopener noreferrer" :class="[
+                                'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300',
                                 alertStyles.badgeBg,
                                 alertStyles.textColor,
-                                'hover:brightness-125 hover:scale-[1.02]'
+                                'hover:brightness-125 hover:scale-[1.02] hover:shadow-lg'
                             ]">
-                                <span>ดูรายละเอียดเพิ่มเติม</span>
+                                <span>View More Details</span>
+                                <i class="fas fa-external-link-alt text-xs"></i>
+                            </a>
+
+                            <!-- Status page link for status alerts -->
+                            <a v-if="alertType === 'status'" 
+                                :href="statusPageUrl" target="_blank" rel="noopener noreferrer"
+                                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 bg-red-500/20 text-red-400 hover:brightness-125 hover:scale-[1.02] hover:shadow-lg">
+                                <span>View All Status</span>
                                 <i class="fas fa-external-link-alt text-xs"></i>
                             </a>
                         </div>
@@ -380,11 +445,11 @@ watch(issues, checkAndShowAlert)
     <!-- Loading Skeleton -->
     <Transition name="fade">
         <div v-if="isLoading" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
-            <div class="rounded-2xl border border-dark-300/30 bg-dark-200/80 backdrop-blur-xl p-4 animate-pulse">
-                <div class="flex items-start gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-dark-400/50"></div>
+            <div class="rounded-2xl border border-dark-300/30 bg-dark-200/80 backdrop-blur-xl p-4">
+                <div class="flex items-start gap-4 animate-pulse">
+                    <div class="w-12 h-12 rounded-xl bg-dark-400/50"></div>
                     <div class="flex-1">
-                        <div class="h-5 bg-dark-400/50 rounded-lg w-32 mb-2"></div>
+                        <div class="h-6 bg-dark-400/50 rounded-lg w-36 mb-3"></div>
                         <div class="h-4 bg-dark-400/50 rounded w-3/4 mb-2"></div>
                         <div class="h-3 bg-dark-400/50 rounded w-1/2"></div>
                     </div>
@@ -393,59 +458,3 @@ watch(issues, checkAndShowAlert)
         </div>
     </Transition>
 </template>
-
-<style scoped>
-/* Alert slide animation - from top */
-.alert-slide-enter-active,
-.alert-slide-leave-active {
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.alert-slide-enter-from {
-    opacity: 0;
-    transform: translate(-50%, -100%);
-}
-
-.alert-slide-leave-to {
-    opacity: 0;
-    transform: translate(-50%, -100%);
-}
-
-/* Expand animation */
-.expand-enter-active,
-.expand-leave-active {
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    overflow: hidden;
-}
-
-.expand-enter-from,
-.expand-leave-to {
-    opacity: 0;
-    max-height: 0;
-}
-
-.expand-enter-to,
-.expand-leave-from {
-    opacity: 1;
-    max-height: 400px;
-}
-
-/* Fade animation */
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
-/* Line clamp utility */
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-</style>

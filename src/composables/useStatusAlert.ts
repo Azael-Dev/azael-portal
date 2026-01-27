@@ -1,5 +1,14 @@
 import { ref, onMounted } from 'vue'
 
+// Cache configuration
+const CACHE_KEY = 'github_status_cache'
+const CACHE_TTL = 60 * 1000 // 1 minute in milliseconds
+
+interface CachedData {
+    timestamp: number
+    data: StatusIssue[]
+}
+
 export interface StatusIssue {
     id: number
     number: number
@@ -145,9 +154,62 @@ export function useStatusAlert() {
     }
 
     /**
-     * Fetch status issues from GitHub API
+     * Get cached data if still valid
      */
-    const fetchStatusIssues = async () => {
+    const getCachedData = (): StatusIssue[] | null => {
+        try {
+            const cached = localStorage.getItem(CACHE_KEY)
+            if (!cached) return null
+
+            const parsedCache: CachedData = JSON.parse(cached)
+            const now = Date.now()
+
+            // Check if cache is still valid (within TTL)
+            if (now - parsedCache.timestamp < CACHE_TTL) {
+                // console.log('[StatusAlert] Using cached data, expires in:',
+                //     Math.round((CACHE_TTL - (now - parsedCache.timestamp)) / 1000), 'seconds')
+                return parsedCache.data
+            }
+
+            // Cache expired
+            // console.log('[StatusAlert] Cache expired, fetching fresh data')
+            return null
+        } catch {
+            // Invalid cache data
+            localStorage.removeItem(CACHE_KEY)
+            return null
+        }
+    }
+
+    /**
+     * Save data to cache
+     */
+    const setCachedData = (data: StatusIssue[]) => {
+        try {
+            const cacheData: CachedData = {
+                timestamp: Date.now(),
+                data
+            }
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
+            // console.log('[StatusAlert] Data cached for', CACHE_TTL / 1000, 'seconds')
+        } catch (err) {
+            // console.warn('[StatusAlert] Failed to cache data:', err)
+        }
+    }
+
+    /**
+     * Fetch status issues from GitHub API with caching
+     */
+    const fetchStatusIssues = async (forceRefresh = false) => {
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cachedData = getCachedData()
+            if (cachedData) {
+                issues.value = cachedData
+                return
+            }
+        }
+
         isLoading.value = true
         error.value = null
 
@@ -163,6 +225,8 @@ export function useStatusAlert() {
             const query = `repo:${username}/${repo}+author:${author}+state:${state}+label:${labels}`
             const url = `${apiUrl}/search/issues?q=${query}&sort=created&order=desc`
 
+            // console.log('[StatusAlert] Fetching from GitHub API...')
+
             const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/vnd.github.v3+json'
@@ -170,14 +234,28 @@ export function useStatusAlert() {
             })
 
             if (!response.ok) {
+                // If rate limited, try to use stale cache
+                if (response.status === 403) {
+                    const staleCache = localStorage.getItem(CACHE_KEY)
+                    if (staleCache) {
+                        const parsed: CachedData = JSON.parse(staleCache)
+                        console.warn('[StatusAlert] Rate limited, using stale cache')
+                        issues.value = parsed.data
+                        return
+                    }
+                }
                 throw new Error(`GitHub API error: ${response.status}`)
             }
 
             const data = await response.json()
-            issues.value = data.items || []
+            const items = data.items || []
+
+            // Save to cache
+            setCachedData(items)
+            issues.value = items
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to fetch status'
-            console.error('Error fetching status issues:', err)
+            console.error('[StatusAlert] Error fetching status issues:', err)
         } finally {
             isLoading.value = false
         }
