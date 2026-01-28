@@ -201,7 +201,7 @@ const formattedDescription = computed(() => {
     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary-400 hover:text-primary-300 underline transition-colors">$1</a>')
     
     // Convert bold text **text** to HTML
-    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold">$1</strong>')
     
     // Convert headers ### to styled spans
     text = text.replace(/^###\s+(.+)$/gm, '<div class="font-bold text-gray-200 mt-2 mb-1">$1</div>')
