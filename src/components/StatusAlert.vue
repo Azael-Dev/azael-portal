@@ -191,6 +191,31 @@ const checkAndShowAlert = () => {
 // Status page URL
 const statusPageUrl = import.meta.env.VITE_STATUS_URL || '#'
 
+// Format description with links support
+const formattedDescription = computed(() => {
+    if (!parsedInfo.value?.description) return ''
+    
+    let text = parsedInfo.value.description.substring(0, 350)
+    
+    // Convert markdown links [text](url) to HTML (before other formatting)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary-400 hover:text-primary-300 underline transition-colors">$1</a>')
+    
+    // Convert bold text **text** to HTML
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
+    
+    // Convert headers ### to styled spans
+    text = text.replace(/^###\s+(.+)$/gm, '<div class="font-bold text-gray-200 mt-2 mb-1">$1</div>')
+    
+    // Convert bullet points - to HTML list items
+    text = text.replace(/^-\s+(.+)$/gm, '<div class="flex gap-2 ml-2 mb-1"><span class="text-primary-400 mt-1">•</span><span>$1</span></div>')
+    
+    // Remove other markdown formatting
+    text = text.replace(/\*([^*]+)\*/g, '$1') // italic
+    text = text.replace(/`([^`]+)`/g, '<code class="text-primary-300 text-xs">$1</code>') // code
+    
+    return text + '...'
+})
+
 // Re-check when issues change
 watch(issues, checkAndShowAlert)
 </script>
@@ -411,9 +436,7 @@ watch(issues, checkAndShowAlert)
                                     <i class="fas fa-info-circle text-[10px]"></i>
                                     Description
                                 </h4>
-                                <p class="text-sm text-gray-300 leading-relaxed line-clamp-3">
-                                    {{ parsedInfo.description.replace(/[#*`]/g, '').substring(0, 250) }}...
-                                </p>
+                                <p class="text-sm text-gray-300 leading-relaxed line-clamp-3" v-html="formattedDescription"></p>
                             </div>
 
                             <!-- View More Link -->
