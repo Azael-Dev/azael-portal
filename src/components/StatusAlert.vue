@@ -375,8 +375,10 @@ watch(issues, checkAndShowAlert)
                                             <div class="flex items-center gap-3 flex-1 min-w-0">
                                                 <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0"></span>
                                                 <div class="flex-1 min-w-0">
-                                                    <div class="text-sm text-red-300 font-medium">{{ service.name }}</div>
-                                                    <div class="text-xs text-gray-400 truncate mt-0.5">{{ service.issueTitle }}</div>
+                                                    <div class="text-sm text-red-300 truncate">
+                                                        <span class="font-medium">{{ service.name }}</span>
+                                                        <span class="text-xs text-gray-400 ml-2">{{ service.issueTitle }}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <a :href="service.issueUrl" target="_blank" rel="noopener noreferrer"
