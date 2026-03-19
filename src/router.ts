@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import HomePage from './views/HomePage.vue'
+import TebexCallbackView from './views/TebexCallbackView.vue'
 
 interface LinkConfig {
     path: string
@@ -32,6 +33,11 @@ const routes: RouteRecordRaw[] = [
         path: '/',
         name: 'Home',
         component: HomePage
+    },
+    {
+        path: '/callback/cfx-tebex-basket-auth',
+        name: 'TebexBasketAuth',
+        component: TebexCallbackView
     },
     ...linkConfigs.map(createRedirectRoute),
     {
