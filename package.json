@@ -1,6 +1,6 @@
 {
     "name": "azael-portal",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "The personal portal website of Azael Dev.",
     "author": "Azael Dev <contact@azael.dev> (https://azael.dev)",
     "homepage": "https://portal.azael.dev",
@@ -17,16 +17,16 @@
         "typecheck": "vue-tsc --noEmit -p tsconfig.json"
     },
     "dependencies": {
-        "vue": "^3.5.28",
+        "vue": "^3.5.30",
         "vue-router": "^5.0.3"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.2.1",
         "@types/three": "^0.183.1",
-        "@vitejs/plugin-vue": "^6.0.4",
+        "@vitejs/plugin-vue": "^6.0.5",
         "tailwindcss": "^4.2.1",
         "typescript": "~5.9.3",
-        "vite": "^7.3.1",
-        "vue-tsc": "^3.2.5"
+        "vite": "^8.0.0",
+        "vue-tsc": "^3.2.6"
     }
 }
