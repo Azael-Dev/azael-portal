@@ -158,8 +158,6 @@ const copyBasketId = async () => {
 onMounted(async () => {
     setTimeout(() => { isLoaded.value = true }, 100)
 
-    await new Promise(resolve => setTimeout(resolve, 3000))
-
     if (!success.value) {
         await fetchBasket()
         if (pageState.value !== 'error') pageState.value = 'failed'
