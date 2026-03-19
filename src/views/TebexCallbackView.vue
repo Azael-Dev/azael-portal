@@ -38,6 +38,20 @@ interface TebexBasket {
     complete_auto_redirect: boolean
 }
 
+interface TebexPackageDetail {
+    id: number
+    name: string
+    description: string
+    type: string
+    base_price: number
+    sales_tax: number
+    total_price: number
+    currency: string
+    discount: number
+    disable_gifting: boolean
+    image: string | null
+}
+
 type PageState = 'loading' | 'success' | 'failed' | 'error'
 
 // ─── Composable Setup ─────────────────────────────────────────────────────────
@@ -50,12 +64,14 @@ const game = computed(() => (route.query.game as string) ?? '')
 const server = computed(() => (route.query.server as string) ?? '')
 const token = computed(() => (route.query.token as string) ?? '')
 const basket = computed(() => (route.query.basket as string) ?? '')
+const packageId = computed(() => (route.query.package as string) ?? '')
 const success = computed(() => route.query.success === 'true')
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
 const pageState = ref<PageState>('loading')
 const basketData = ref<TebexBasket | null>(null)
+const packageData = ref<TebexPackageDetail | null>(null)
 const errorMsg = ref('')
 const isLoaded = ref(false)
 const copySuccess = ref(false)
@@ -80,6 +96,22 @@ const formatCurrency = (amount: number, currency: string) => {
 
 
 // ─── API Fetch ────────────────────────────────────────────────────────────────
+
+const fetchPackage = async () => {
+    if (!token.value || !packageId.value) return
+
+    try {
+        const url = `https://headless.tebex.io/api/accounts/${encodeURIComponent(token.value)}/packages/${encodeURIComponent(packageId.value)}`
+        const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+
+        if (!res.ok) return
+
+        const json = await res.json() as { data: TebexPackageDetail }
+        packageData.value = json.data
+    } catch {
+        // Non-critical: package detail is supplementary
+    }
+}
 
 const fetchBasket = async () => {
     if (!token.value || !basket.value) {
@@ -158,11 +190,10 @@ const copyBasketId = async () => {
 onMounted(async () => {
     setTimeout(() => { isLoaded.value = true }, 100)
 
-    if (!success.value) {
-        await fetchBasket()
-        if (pageState.value !== 'error') pageState.value = 'failed'
-    } else {
-        await fetchBasket()
+    await Promise.all([fetchBasket(), fetchPackage()])
+
+    if (pageState.value !== 'error' && !success.value) {
+        pageState.value = 'failed'
     }
 
     history.replaceState(null, '', '/callback/cfx-tebex-basket-auth')
@@ -259,24 +290,38 @@ onMounted(async () => {
                         </div>
 
                         <!-- ── Packages ── -->
-                        <div v-if="basketData?.packages?.length">
+                        <div v-if="packageData || basketData?.packages?.length">
                             <p class="text-dark-700 text-xs uppercase tracking-wider px-1 pt-2 pb-1.5">รายการสินค้า</p>
 
                             <div class="space-y-2">
-                                <div v-for="pkg in basketData.packages" :key="pkg.id"
+                                <!-- Package from package API -->
+                                <div v-if="packageData"
                                     class="flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5 h-10">
                                     <div class="flex items-center gap-2.5 min-w-0">
                                         <i class="fas fa-box text-dark-600 text-xs shrink-0 w-4 text-center"></i>
-                                        <span class="text-white text-xs font-medium truncate">{{ pkg.name }}</span>
-                                        <span v-if="pkg.quantity > 1"
-                                            class="shrink-0 text-xs bg-white/10 border border-white/10 rounded-full px-1.5 py-0.5 text-dark-800 leading-none">
-                                            ×{{ pkg.quantity }}
-                                        </span>
+                                        <span class="text-white text-xs font-medium truncate">{{ packageData.name }}</span>
                                     </div>
                                     <span class="text-primary-400 font-semibold text-xs shrink-0 ml-3">
-                                        {{ formatCurrency(pkg.total_price, basketData.currency) }}
+                                        {{ formatCurrency(packageData.total_price, packageData.currency) }}
                                     </span>
                                 </div>
+                                <!-- Fallback: packages from basket API -->
+                                <template v-else>
+                                    <div v-for="pkg in basketData!.packages" :key="pkg.id"
+                                        class="flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5 h-10">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <i class="fas fa-box text-dark-600 text-xs shrink-0 w-4 text-center"></i>
+                                            <span class="text-white text-xs font-medium truncate">{{ pkg.name }}</span>
+                                            <span v-if="pkg.quantity > 1"
+                                                class="shrink-0 text-xs bg-white/10 border border-white/10 rounded-full px-1.5 py-0.5 text-dark-800 leading-none">
+                                                ×{{ pkg.quantity }}
+                                            </span>
+                                        </div>
+                                        <span class="text-primary-400 font-semibold text-xs shrink-0 ml-3">
+                                            {{ formatCurrency(pkg.total_price, basketData!.currency) }}
+                                        </span>
+                                    </div>
+                                </template>
                             </div>
                         </div>
 
@@ -353,6 +398,42 @@ onMounted(async () => {
                                     : 'border-white/10 text-dark-700 hover:text-white hover:border-white/20 bg-white/5 cursor-pointer'">
                                 <i :class="copySuccess ? 'fas fa-check' : 'fas fa-copy'"></i>
                             </button>
+                        </div>
+
+                        <!-- ── Packages ── -->
+                        <div v-if="packageData || basketData?.packages?.length">
+                            <p class="text-dark-700 text-xs uppercase tracking-wider px-1 pt-2 pb-1.5">รายการสินค้า</p>
+
+                            <div class="space-y-2">
+                                <!-- Package from package API -->
+                                <div v-if="packageData"
+                                    class="flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5 h-10">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <i class="fas fa-box text-dark-600 text-xs shrink-0 w-4 text-center"></i>
+                                        <span class="text-white text-xs font-medium truncate">{{ packageData.name }}</span>
+                                    </div>
+                                    <span class="text-primary-400 font-semibold text-xs shrink-0 ml-3">
+                                        {{ formatCurrency(packageData.total_price, packageData.currency) }}
+                                    </span>
+                                </div>
+                                <!-- Fallback: packages from basket API -->
+                                <template v-else>
+                                    <div v-for="pkg in basketData!.packages" :key="pkg.id"
+                                        class="flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5 h-10">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <i class="fas fa-box text-dark-600 text-xs shrink-0 w-4 text-center"></i>
+                                            <span class="text-white text-xs font-medium truncate">{{ pkg.name }}</span>
+                                            <span v-if="pkg.quantity > 1"
+                                                class="shrink-0 text-xs bg-white/10 border border-white/10 rounded-full px-1.5 py-0.5 text-dark-800 leading-none">
+                                                ×{{ pkg.quantity }}
+                                            </span>
+                                        </div>
+                                        <span class="text-primary-400 font-semibold text-xs shrink-0 ml-3">
+                                            {{ formatCurrency(pkg.total_price, basketData!.currency) }}
+                                        </span>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
 
                         <div
