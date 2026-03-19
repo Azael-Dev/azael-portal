@@ -85,10 +85,10 @@ onUnmounted(() => {
 
 <template>
     <!-- Wave Background -->
-    <div ref="waveRef" id="wave-bg" class="fixed top-0 left-0 w-full h-full z-[1] bg-transparent"></div>
+    <div ref="waveRef" id="wave-bg" class="fixed top-0 left-0 w-full h-full z-1 bg-transparent"></div>
 
     <!-- Grid Background (hidden by default, can be enabled) -->
-    <div id="grid-bg" class="hidden fixed top-0 left-0 w-full h-full z-[1]" style="
+    <div id="grid-bg" class="hidden fixed top-0 left-0 w-full h-full z-1" style="
       background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
       background-size: 50px 50px;

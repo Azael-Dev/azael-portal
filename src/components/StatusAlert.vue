@@ -244,7 +244,7 @@ watch(issues, checkAndShowAlert)
                 <div class="p-4">
                     <div class="flex items-start gap-4">
                         <!-- Icon with glow effect -->
-                        <div class="relative flex-shrink-0">
+                        <div class="relative shrink-0">
                             <div :class="[
                                 'w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 hover:scale-105',
                                 alertStyles.badgeBg
@@ -347,7 +347,7 @@ watch(issues, checkAndShowAlert)
                         </div>
 
                         <!-- Actions -->
-                        <div class="flex-shrink-0 flex items-center gap-1">
+                        <div class="shrink-0 flex items-center gap-1">
                             <!-- Expand/Collapse Button -->
                             <button @click="toggleExpanded"
                                 class="action-btn p-2.5 rounded-xl hover:bg-white/10 transition-all duration-200 text-gray-400 hover:text-white cursor-pointer"
@@ -382,7 +382,7 @@ watch(issues, checkAndShowAlert)
                                         <div v-for="(service, index) in allStatusAffectedServices" :key="index"
                                             class="flex items-center justify-between p-3 rounded-xl bg-red-500/10 border border-red-500/20 transition-all duration-200 hover:bg-red-500/15">
                                             <div class="flex items-center gap-3 flex-1 min-w-0">
-                                                <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0"></span>
+                                                <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0"></span>
                                                 <div class="flex-1 min-w-0">
                                                     <div class="text-sm text-red-300 truncate">
                                                         <span class="font-medium">{{ service.name }}</span>
@@ -391,7 +391,7 @@ watch(issues, checkAndShowAlert)
                                                 </div>
                                             </div>
                                             <a :href="service.issueUrl" target="_blank" rel="noopener noreferrer"
-                                                class="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1 flex-shrink-0 ml-2">
+                                                class="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1 shrink-0 ml-2">
                                                 <span class="hidden sm:inline">View Details</span>
                                                 <i class="fas fa-external-link-alt text-[10px]"></i>
                                             </a>
