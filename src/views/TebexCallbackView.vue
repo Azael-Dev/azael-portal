@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import WaveBackground from '../components/WaveBackground.vue'
@@ -75,6 +75,8 @@ const packageData = ref<TebexPackageDetail | null>(null)
 const errorMsg = ref('')
 const isLoaded = ref(false)
 const copySuccess = ref(false)
+const countdown = ref(10)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ─── Computed Helpers ─────────────────────────────────────────────────────────
 
@@ -140,6 +142,22 @@ const fetchBasket = async () => {
     }
 }
 
+// ─── Checkout Redirect ──────────────────────────────────────────────────────
+
+const startCheckoutRedirect = () => {
+    const ident = basketData.value?.ident
+    if (!ident) return
+
+    countdownTimer = setInterval(() => {
+        countdown.value--
+        if (countdown.value <= 0) {
+            clearInterval(countdownTimer!)
+            countdownTimer = null
+            window.location.href = `https://pay.tebex.io/${encodeURIComponent(ident)}/payment`
+        }
+    }, 1000)
+}
+
 // ─── Launch Game Client ─────────────────────────────────────────────────────
 
 const launchGame = () => {
@@ -196,7 +214,15 @@ onMounted(async () => {
         pageState.value = 'failed'
     }
 
+    if (pageState.value === 'success') {
+        startCheckoutRedirect()
+    }
+
     history.replaceState(null, '', '/callback/cfx-tebex-basket-auth')
+})
+
+onUnmounted(() => {
+    if (countdownTimer) clearInterval(countdownTimer)
 })
 </script>
 
@@ -326,11 +352,13 @@ onMounted(async () => {
                         </div>
 
                         <!-- Action -->
-                        <div class="pt-3">
-                            <button @click="launchGame"
-                                class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-white/30 transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer">
-                                ดำเนินการต่อใน {{ gameLabel }}
-                            </button>
+                        <div class="pt-3 space-y-2">
+                            <a :href="`https://pay.tebex.io/${encodeURIComponent(basketData!.ident)}/payment`"
+                                class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500/20 border border-primary-500/40 text-primary-300 hover:bg-primary-500/30 hover:border-primary-500/60 transition-all duration-300 text-xs font-semibold tracking-wide">
+                                <i class="fas fa-credit-card"></i>
+                                ชำระเงินผ่าน Tebex
+                                <span class="ml-1 tabular-nums text-primary-400">({{ countdown }})</span>
+                            </a>
                         </div>
 
                     </div>
@@ -445,7 +473,7 @@ onMounted(async () => {
                         <div class="pt-3">
                             <button @click="launchGame"
                                 class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-white/30 transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer">
-                                ดำเนินการต่อใน {{ gameLabel }}
+                                ลองใหม่อีกครั้งใน {{ gameLabel }}
                             </button>
                         </div>
                     </div>
@@ -475,7 +503,7 @@ onMounted(async () => {
                         <div v-if="gameLabel" class="pt-3">
                             <button @click="launchGame"
                                 class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-white/30 transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer">
-                                ดำเนินการต่อใน {{ gameLabel }}
+                                ลองใหม่อีกครั้งใน {{ gameLabel }}
                             </button>
                         </div>
 
