@@ -261,7 +261,7 @@ onMounted(async () => {
                         </div>
 
                         <!-- ── Packages ── -->
-                        <div v-if="basketData">
+                        <div v-if="basketData?.packages?.length">
                             <p class="text-dark-700 text-xs uppercase tracking-wider px-1 pt-2 pb-1.5">รายการสินค้า</p>
 
                             <div class="space-y-2">
@@ -278,11 +278,6 @@ onMounted(async () => {
                                     <span class="text-primary-400 font-semibold text-xs shrink-0 ml-3">
                                         {{ formatCurrency(pkg.total_price, basketData.currency) }}
                                     </span>
-                                </div>
-
-                                <div v-if="basketData.packages.length === 0"
-                                    class="text-center py-3 text-dark-600 text-xs border border-dashed border-white/10 rounded-xl">
-                                    ไม่มีรายการสินค้าในตะกร้า
                                 </div>
                             </div>
                         </div>
